@@ -4,3 +4,7 @@
 erl_crash.dump
 *.ez
 *-docs.tar.gz
+*.swp
+*~
+.env
+/.idea
