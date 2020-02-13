@@ -43,7 +43,8 @@ defmodule ETL do
       [ head | tail ] |> Enum.join
   end
 
-  define :function, "keyword (<'.'> keyword)? <'('> <space?> (object (<','> object)*)* <space?> <')'>" do
+  define :function, "keyword (<'.'> keyword)? <'('> <space?> object? <space?> <')'>" do
+    [ object, nil, nil ] -> %{ functionCall: %{ object: object, method: nil, arguments: %{} } }
     [ object, nil, tail ] -> %{ functionCall: %{ object: object, method: nil, arguments: tail } }
     [ object, [method], tail ] -> %{ functionCall: %{ object: object, method: method, arguments: tail } }
   end
@@ -125,11 +126,12 @@ defmodule ETL do
     repl()
   end
 
-  def safeParse(value) do
+  def safeParse(value, extra \\ %{}) do
     value = Regex.replace(~r/\\"/, value, "&quot;")
     value = Regex.replace(~r{//[^\n]+\n}, value, "")
     value = Regex.replace(~r{/\*.*\*/}U, value, "")
     value = Regex.replace(~r{[\r\n]}, value, "")
+    value = Regex.replace(~r/{([a-zA-Z0-9_.]+)}/, value, fn _, x -> "\"#{extra[String.to_atom(x)]}\"" end)
     parse(String.trim(value))
   end
 
@@ -152,11 +154,11 @@ defmodule ETL do
     {:ok, ^dict} = safeParse("{\"a\": 1}") |> IO.inspect(label: "simple object")
     {:ok, nil} = safeParse("//Test\n") |> IO.inspect(label: "Single Line Comment")
     {:ok, %{ key: _value }} = safeParse("{ key: \"value\" }") |> IO.inspect(label: "Simple Hash")
-    {:ok, %{key: %{functionCall: %{arguments: [], method: nil, object: "Function"}}}} = safeParse("{ key: Function() }") |> IO.inspect(label: "Simple Function 1")
-    {:ok, %{key: %{functionCall: %{arguments: [[%{}, []]], method: nil, object: "Function"}}}} = safeParse("{ key: Function({}) }") |> IO.inspect(label: "Simple Function 2")
-    {:ok, %{key: [%{functionCall: %{arguments: [[%{key: 1, key2: "2"}, []]], method: nil, object: "Function"}}]}} = safeParse("{ key: [ Function({key: 1, key2: \"2\"}) ] }") |> IO.inspect(label: "Function with Arguments")
-    {:ok, %{key: [%{functionCall: %{arguments: [[%{key: 1, key2: "2"}, []]], method: "method", object: "Function"}}]}} = safeParse("{ key: [ Function.method({key: 1, key2: \"2\"}) ] }") |> IO.inspect(label: "Function with Arguments and Method")
-    {:ok, "broken"} = safeParse(File.read!("test/sample2.js")) |> IO.inspect(label: "Full Script")
+    {:ok, %{key: %{functionCall: %{arguments: %{}, method: nil, object: "Function"}}}} = safeParse("{ key: Function() }") |> IO.inspect(label: "Simple Function 1")
+    {:ok, %{key: %{functionCall: %{arguments: %{}, method: nil, object: "Function"}}}} = safeParse("{ key: Function({}) }") |> IO.inspect(label: "Simple Function 2")
+    {:ok, %{key: [%{functionCall: %{arguments: %{key: 1, key2: "2"}, method: nil, object: "Function"}}]}} = safeParse("{ key: [ Function({key: 1, key2: \"2\"}) ] }") |> IO.inspect(label: "Function with Arguments")
+    {:ok, %{key: [%{functionCall: %{arguments: %{key: 1, key2: "2"}, method: "method", object: "Function"}}]}} = safeParse("{ key: [ Function.method({key: 1, key2: \"2\"}) ] }") |> IO.inspect(label: "Function with Arguments and Method")
+    {:ok, "broken"} = safeParse(File.read!("test/sample2.js"), %{mongoURL: "mongodb://localhost/mycollection"}) |> IO.inspect(label: "Full Script")
   end
 end
 
