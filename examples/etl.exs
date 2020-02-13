@@ -103,7 +103,10 @@ defmodule ETL do
   end
 
   define :lc_start,       "'//'"
-  define :number_range,   "digit+ <'..'> digit+", do: ([[start], [stop]] -> Enum.into String.to_integer(start)..String.to_integer(stop), []) # |> IO.inspect(label: "number_range"))
+  define :number_range,   "digit+ <'..'> digit+", do: (
+      [[start], [stop]] -> Enum.into(String.to_integer(start)..String.to_integer(stop), []) # |> IO.inspect(label: "number_range"))
+      [start, stop] -> Enum.into(String.to_integer(start |> Enum.join |> to_string)..String.to_integer(stop |> Enum.join |> to_string), [])
+    ) # |> IO.inspect(label: "number_range"))
   define :newline,        "[\\n]", do: (_ -> "\n" ), do: (any -> any) # |> IO.inspect(label: "newline"))
   define :cr,             "'\\r'", do: (_ -> "\r"), do: (any -> any) # |> IO.inspect(label: "cr"))
   define :tab,            "'\\t'", do: (_ -> "\t"), do: (any -> any) # |> IO.inspect(label: "tab"))
